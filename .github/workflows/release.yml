@@ -1,0 +1,50 @@
+name: Release
+
+# Push a semantic version tag (v1.0.0, or v1.1.0-rc.1 for a pre-release)
+# to build the plugin zip and attach it to a GitHub Release. Releases are
+# immutable artifacts: deploys and rollbacks use these zips, never a branch.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Tag matches plugin version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          header=$(grep -m1 -E '^ \* Version:' river-conditions.php | awk '{print $NF}')
+          const=$(grep -m1 -E "^const VERSION" river-conditions.php | grep -oE "'[^']+'" | tr -d "'")
+          stable=$(grep -m1 -E '^Stable tag:' readme.txt | awk '{print $NF}')
+          echo "tag=$tag header=$header const=$const readme=$stable"
+          test "$tag" = "$header" && test "$tag" = "$const"
+          # readme.txt Stable tag tracks stable releases only.
+          if [[ "$tag" != *-* ]]; then test "$tag" = "$stable"; fi
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Regenerate translation template
+        run: composer make-pot
+      - run: npm ci
+      - run: npm run build
+      - run: npm run plugin-zip
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mv river-conditions.zip "river-conditions-${GITHUB_REF_NAME}.zip"
+          flags="--generate-notes --verify-tag"
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags="$flags --prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" "river-conditions-${GITHUB_REF_NAME}.zip" --title "River Conditions ${GITHUB_REF_NAME}" $flags
