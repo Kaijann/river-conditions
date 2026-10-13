@@ -51,7 +51,8 @@ row location-06037500 "$s" "$(jq -r '.features[0].properties | "\(.monitoring_lo
 s=$(fetch location-06043500 "$BASE/monitoring-locations/items?f=json&id=USGS-06043500&skipGeometry=true")
 row location-06043500 "$s" "$(jq -r '.features[0].properties | "\(.monitoring_location_name // "?") · \(.state_name // "?")"' "$OUT/location-06043500.json" 2>/dev/null)"
 
-s=$(fetch location-invalid "$BASE/monitoring-locations/items?f=json&id=USGS-00000000&skipGeometry=true")
+# Note: USGS-00000000 is a real site ("SAN MARCIAL ADDED", NM), so use a 15-digit ID.
+s=$(fetch location-invalid "$BASE/monitoring-locations/items?f=json&id=USGS-999999999999999&skipGeometry=true")
 row location-invalid "$s" "features: $(jq '.features | length' "$OUT/location-invalid.json" 2>/dev/null)"
 
 s=$(fetch latest-06037500 "$BASE/latest-continuous/items?f=json&monitoring_location_id=USGS-06037500&skipGeometry=true&limit=100")
@@ -60,7 +61,9 @@ row latest-06037500 "$s" "parameters: $(params latest-06037500)"
 s=$(fetch latest-06043500 "$BASE/latest-continuous/items?f=json&monitoring_location_id=USGS-06043500&skipGeometry=true&limit=100")
 row latest-06043500 "$s" "parameters: $(params latest-06043500)"
 
-s=$(fetch continuous-06037500 "$BASE/continuous/items?f=json&monitoring_location_id=USGS-06037500&parameter_code=00060&datetime=P7D&skipGeometry=true&limit=1000")
+# The API rejects ISO durations ("P7D"); send an explicit interval, as UsgsClient does.
+INTERVAL="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)/$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+s=$(fetch continuous-06037500 "$BASE/continuous/items?f=json&monitoring_location_id=USGS-06037500&parameter_code=00060&datetime=$(jq -rn --arg d "$INTERVAL" '$d|@uri')&skipGeometry=true&limit=1000")
 row continuous-06037500 "$s" "points: $(jq '.features | length' "$OUT/continuous-06037500.json" 2>/dev/null), next link: $(jq -r '[.links[]? | select(.rel=="next")] | length' "$OUT/continuous-06037500.json" 2>/dev/null)"
 
 # Find a gauge reporting both water temperature and flow.
@@ -76,9 +79,16 @@ done
 rm -f "$OUT/temp-candidates.json"
 row latest-with-temp "$s" "site: ${TEMP_SITE:-none found}, parameters: $(params latest-with-temp)"
 
-# CQL2 text filter for editor site search (SPEC §1.4).
-s=$(fetch location-search "$BASE/monitoring-locations/items?f=json&skipGeometry=true&limit=5&filter-lang=cql2-text&filter=$(jq -rn --arg f "monitoring_location_name ILIKE '%madison%' AND state_name='Montana'" '$f|@uri')")
-row location-search "$s" "CQL2 ILIKE search, features: $(jq '.features | length' "$OUT/location-search.json" 2>/dev/null)"
+# CQL2 text filter for editor site search (SPEC §1.4). ILIKE answered
+# "Bad CQL text" on the first capture, so probe a few variants.
+probe=1
+for f in "monitoring_location_name ILIKE '%madison%' AND state_name='Montana'" \
+	"monitoring_location_name LIKE '%Madison%' AND state_name='Montana'" \
+	"state_name='Montana' AND site_type_code='ST'"; do
+	s=$(fetch "location-search-$probe" "$BASE/monitoring-locations/items?f=json&skipGeometry=true&limit=5&filter-lang=cql2-text&filter=$(jq -rn --arg f "$f" '$f|@uri')")
+	row "location-search-$probe" "$s" "CQL2 \`$f\` → features: $(jq '.features | length' "$OUT/location-search-$probe.json" 2>/dev/null), $(jq -r '.description // ""' "$OUT/location-search-$probe.json" 2>/dev/null)"
+	probe=$((probe + 1))
+done
 
 {
 	echo
