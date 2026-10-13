@@ -96,7 +96,7 @@ Tagged releases build an immutable zip on GitHub Releases. Staging deploys pre-r
 
 ## How this was built
 
-Built AI-first with agents (Cursor, K-AI, Claude Code) and reviewed line by line by me.
+Built AI-first with agents (Cursor, K-AI, Claude Code) and tested by me.
 
 ## Roadmap
 
