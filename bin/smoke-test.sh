@@ -31,8 +31,15 @@ check_page() {
 	# grep -o | head can SIGPIPE under pipefail; these lines are informational only.
 	grep -o '<figure[^>]*rivcon-gauge[^>]*>' <<<"$html" | head -1 || true
 	if ! grep -q 'class="[^"]*rivcon-gauge' <<<"$html"; then
-		echo "FAIL: no gauge markup. Page excerpt:"
-		grep -o '<main.*' <<<"$html" | cut -c1-1500 || true
+		echo "FAIL: no gauge markup on page ${id}. Diagnostics:"
+		echo "-- HTML length: ${#html}; first 1500 chars of <body>:"
+		grep -o '<body.*' <<<"$html" | cut -c1-1500 || true
+		echo "-- post:"
+		$WP post get "$id" --fields=ID,post_title,post_status,post_content || true
+		echo "-- block registered / direct render:"
+		$WP eval 'var_dump( WP_Block_Type_Registry::get_instance()->is_registered( "river-conditions/gauge" ) ); echo do_blocks( get_post( '"$id"' )->post_content );' || true
+		echo "-- debug.log:"
+		$WP eval 'echo @file_get_contents( WP_CONTENT_DIR . "/debug.log" );' | tail -20 || true
 		exit 1
 	fi
 	grep -q 'river-conditions-gauge-css' <<<"$html" || { echo "FAIL: stylesheet not enqueued"; exit 1; }
