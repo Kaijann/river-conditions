@@ -30,6 +30,10 @@ git checkout main && git pull
 git tag -a v1.1.0 -m "v1.1.0" && git push origin v1.1.0
 ```
 
+Or, without a local tag: **Actions → Release → Run workflow** and enter
+`1.1.0`. The workflow tags the current `main` commit itself and refuses a
+version that already exists.
+
 `.github/workflows/release.yml` checks that the tag matches the plugin
 version, regenerates the `.pot`, builds, runs `npm run plugin-zip` (only the
 files listed in `package.json` → `files`, matching `.distignore`) and
