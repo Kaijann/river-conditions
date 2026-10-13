@@ -17,6 +17,8 @@ A WordPress block and shortcode that show live river conditions (flow, gage heig
 
 ## Install and use
 
+Requires WordPress 6.5+ and PHP 8.1+. Tested on WordPress 7.1.
+
 1. Download `river-conditions-vX.Y.Z.zip` from [Releases](https://github.com/Kaijann/river-conditions/releases) and go to **Plugins → Add New → Upload Plugin**.
 2. Add the **River Conditions** block and enter a USGS site ID (for example `USGS-06037500`), or click **Use an example gauge**.
 3. Or use the shortcode:
@@ -92,6 +94,7 @@ Tagged releases build an immutable zip on GitHub Releases. Staging deploys pre-r
 
 - USGS real-time data is mostly **provisional** and can be revised. The block tags it.
 - Many gauges have **no temperature sensor**. The stat is simply hidden.
+- The parser is tested against **real API responses** saved in `tests/fixtures/` (refresh them with the Fixtures workflow), and CI renders the block against the live API.
 - USGS is **retiring the legacy `waterservices.usgs.gov` APIs** (announced for early 2027). This plugin uses only the new [Water Data OGC API](https://api.waterdata.usgs.gov/docs/ogcapi/). API findings are recorded in [docs/USGS-NOTES.md](docs/USGS-NOTES.md).
 
 ## How this was built
@@ -100,7 +103,7 @@ Built AI-first with agents (Cursor, K-AI, Claude Code) and tested by me.
 
 ## Roadmap
 
-- Editor site search by name (the API's CQL2 `ILIKE` filter returned "Bad CQL text" in testing; see USGS-NOTES)
+- Editor site search by name. The API accepts a case-sensitive CQL2 `LIKE` filter (`ILIKE` returns "Bad CQL text"); see USGS-NOTES
 - "% of normal for today" (USGS statistics service)
 - Map view
 - Saved rivers for logged-in users

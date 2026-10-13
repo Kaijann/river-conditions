@@ -56,7 +56,7 @@ tests (`tests/Unit/FixtureParserTest.php`) exist to catch them.
 4. Editor search by name (CQL2 `ILIKE`) is **not shipped**. If the
    `location-search` fixture returns matches, build it per SPEC §4.
 
-## Capture results (2026-10-13, v1, no API key)
+## Capture results (2026-10-13, v1, no API key, two runs)
 
 | Check | Result |
 |---|---|
@@ -67,7 +67,14 @@ tests (`tests/Unit/FixtureParserTest.php`) exist to catch them.
 | `latest-continuous`, Gallatin | 00060, 00065 (**no temperature**: the "hidden stat" case) |
 | Temperature + flow gauge | `USGS-01036390` |
 | `continuous` with `datetime=P7D` | **HTTP 400**, see above |
-| CQL2 `ILIKE` name search | **HTTP 400 "Bad CQL text"**, so editor search is not shipped |
+| `continuous` with an explicit 7-day interval | HTTP 200, 670 points (15-minute data), no next page |
+| `monitoring-locations?id=USGS-999999999999999` | HTTP 200, 0 features (how an unknown site looks) |
+| CQL2 `ILIKE` name search | **HTTP 400 "Bad CQL text"** |
+| CQL2 `LIKE '%Madison%' AND state_name='Montana'` | HTTP 200, 5 results (case-sensitive) |
+| CQL2 `state_name='Montana' AND site_type_code='ST'` | HTTP 200 |
+
+Editor search by name is not in v1, but a case-sensitive `LIKE` filter works,
+so it can be added later (SPEC §4).
 
 Other findings:
 
