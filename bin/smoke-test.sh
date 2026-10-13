@@ -6,8 +6,19 @@
 # state (ok, stale, unavailable); the checks cover what must always hold.
 set -euo pipefail
 
-WP="npx wp-env run cli wp"
-SITE_URL="http://localhost:8888"
+# Override to run against another install, e.g. WP_CLI="wp --path=/srv/wp" SITE_URL=http://localhost:8080
+WP="${WP_CLI:-npx wp-env run cli wp}"
+SITE_URL="${SITE_URL:-http://localhost:8888}"
+
+# refute DESCRIPTION CMD...: fail if CMD succeeds. (Bash's "! cmd" never trips set -e.)
+refute() {
+	local what="$1"
+	shift
+	if "$@"; then
+		echo "FAIL: ${what}"
+		exit 1
+	fi
+}
 
 create_page() {
 	$WP post create --post_type=page --post_status=publish --post_title="$1" --post_content="$2" --porcelain 2>/dev/null | tr -dc '0-9'
@@ -17,13 +28,19 @@ check_page() {
 	local label="$1" id="$2" html
 	html="$(curl -fsS "${SITE_URL}/?page_id=${id}")"
 	echo "== ${label}: page ${id}"
-	echo "$html" | grep -o '<figure[^>]*rivcon-gauge[^>]*>' | head -1
-	echo "$html" | grep -q 'class="[^"]*rivcon-gauge' || { echo "FAIL: no gauge markup"; exit 1; }
-	echo "$html" | grep -q 'river-conditions-gauge-css' || { echo "FAIL: stylesheet not enqueued"; exit 1; }
-	if echo "$html" | grep -q 'rivcon-gauge__value'; then
-		echo "state: has a flow value"
-	elif echo "$html" | grep -q 'rivcon-gauge__alert'; then
-		echo "state: alert ($(echo "$html" | grep -o 'rivcon-gauge__alert" role="status">[^<]*' | head -1))"
+	# grep -o | head can SIGPIPE under pipefail; these lines are informational only.
+	grep -o '<figure[^>]*rivcon-gauge[^>]*>' <<<"$html" | head -1 || true
+	if ! grep -q 'class="[^"]*rivcon-gauge' <<<"$html"; then
+		echo "FAIL: no gauge markup. Page excerpt:"
+		grep -o '<main.*' <<<"$html" | cut -c1-1500 || true
+		exit 1
+	fi
+	grep -q 'river-conditions-gauge-css' <<<"$html" || { echo "FAIL: stylesheet not enqueued"; exit 1; }
+	if grep -q 'rivcon-gauge__value' <<<"$html"; then
+		echo "state: live value $(grep -o 'rivcon-gauge__value">[^<]*' <<<"$html" | head -1 | cut -d'>' -f2 || true) cfs"
+		grep -q 'rivcon-gauge__spark' <<<"$html" && echo "sparkline: yes" || echo "sparkline: no"
+	else
+		echo "state: $(grep -o 'rivcon-gauge__\(alert\|flag\)" role="status">[^<]*' <<<"$html" | head -1 || true)"
 	fi
 }
 
@@ -37,11 +54,12 @@ check_page "shortcode (compact)" "$SHORT_ID"
 
 echo "== invalid site renders only a comment"
 html="$(curl -fsS "${SITE_URL}/?page_id=${INVALID_ID}")"
-echo "$html" | grep -q '<!-- River Conditions: no USGS gauge for USGS-123 -->'
-! echo "$html" | grep -q 'rivcon-gauge__'
+grep -q '<!-- River Conditions: no USGS gauge for USGS-123 -->' <<<"$html"
+refute "invalid site rendered gauge markup" grep -q 'rivcon-gauge__' <<<"$html"
 
 echo "== pages without a gauge load no plugin CSS"
-! curl -fsS "${SITE_URL}/?page_id=${PLAIN_ID}" | grep -q 'river-conditions-gauge-css'
+plain="$(curl -fsS "${SITE_URL}/?page_id=${PLAIN_ID}")"
+refute "plugin CSS loaded on a page without a gauge" grep -q 'river-conditions-gauge-css' <<<"$plain"
 
 echo "== REST routes are registered and protected"
 curl -fsS "${SITE_URL}/?rest_route=/river-conditions/v1" | grep -q '"namespace":"river-conditions\\/v1"'
@@ -51,11 +69,12 @@ test "$status" = "401" || { echo "FAIL: /render should need auth, got $status"; 
 echo "== the API key never reaches the page"
 $WP option update rivcon_settings '{"api_key":"SMOKEKEY123","cache_minutes":15,"temp_unit":"F","show_attribution":true}' --format=json
 $WP transient delete --all
-! curl -fsS "${SITE_URL}/?page_id=${BLOCK_ID}" | grep -q 'SMOKEKEY123'
+keyed="$(curl -fsS "${SITE_URL}/?page_id=${BLOCK_ID}")"
+refute "API key appears in page HTML" grep -q 'SMOKEKEY123' <<<"$keyed"
 
 echo "== uninstall removes options"
 $WP plugin deactivate river-conditions
 $WP plugin uninstall river-conditions --skip-delete
-! $WP option get rivcon_settings 2>/dev/null
+refute "rivcon_settings survived uninstall" $WP option get rivcon_settings
 
 echo "All smoke checks passed."
