@@ -1,0 +1,8 @@
+/vendor/
+/node_modules/
+/build/
+/*.zip
+.phpunit.cache/
+.phpunit.result.cache
+.DS_Store
+.env

@@ -1,0 +1,26 @@
+# Files excluded from the release zip (wp dist-archive). The npm
+# plugin-zip script uses the "files" list in package.json, which matches.
+/.git
+/.github
+/.wp-env.json
+/.editorconfig
+/.distignore
+/.gitignore
+/.nvmrc
+/bin
+/blocks
+/docs
+/node_modules
+/tests
+/vendor
+/composer.json
+/composer.lock
+/package.json
+/package-lock.json
+/phpcs.xml.dist
+/phpstan.neon.dist
+/phpunit.xml.dist
+/eslint.config.cjs
+/README.md
+/CHANGELOG.md
+/CLAUDE.md

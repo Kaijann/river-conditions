@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }} · phpcs, phpstan, phpunit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+      - name: Install dev tools
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Coding standards (WPCS)
+        run: composer lint
+      - name: Static analysis (PHPStan level 6)
+        run: composer analyse
+      - name: Unit tests
+        run: composer test
+
+  js:
+    name: JS · lint and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:js
+      - run: npm run lint:css
+      - run: npm run build
+      - name: Front-end CSS budget (≤ 6 KB)
+        run: |
+          size=$(stat -c%s build/gauge/style-index.css)
+          echo "style-index.css: ${size} bytes"
+          test "$size" -le 6144
+      - name: Plugin zip contains only runtime files
+        run: |
+          npm run plugin-zip
+          unzip -l river-conditions.zip
+          unzip -l river-conditions.zip | grep -q 'river-conditions/build/gauge/block.json'
+          ! unzip -l river-conditions.zip | grep -E '/(vendor|node_modules|tests|blocks)/'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: river-conditions-zip
+          path: river-conditions.zip
+          retention-days: 7
+
+  wordpress:
+    name: WordPress smoke test (wp-env)
+    runs-on: ubuntu-latest
+    needs: [php, js]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci && npm run build
+      - name: Start WordPress
+        run: npx wp-env start
+      - name: Activate plugin cleanly
+        run: |
+          npx wp-env run cli wp plugin activate river-conditions
+          npx wp-env run cli wp plugin list --status=active --field=name | grep -x river-conditions
+      - name: Block, shortcode and REST routes render
+        run: bin/smoke-test.sh
