@@ -13,7 +13,7 @@ jobs:
   capture:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Capture fixtures
         env:
           USGS_API_KEY: ${{ secrets.USGS_API_KEY }}
