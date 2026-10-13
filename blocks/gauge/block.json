@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "river-conditions/gauge",
+	"version": "1.0.0",
+	"title": "River Conditions",
+	"category": "widgets",
+	"icon": "chart-line",
+	"description": "Live flow, gage height and water temperature for a USGS river gauge.",
+	"keywords": [ "river", "usgs", "flow", "gauge", "water" ],
+	"textdomain": "river-conditions",
+	"attributes": {
+		"siteId": { "type": "string", "default": "" },
+		"title": { "type": "string", "default": "" },
+		"layout": { "type": "string", "enum": [ "card", "compact" ], "default": "card" },
+		"showFlow": { "type": "boolean", "default": true },
+		"showGageHeight": { "type": "boolean", "default": true },
+		"showTemp": { "type": "boolean", "default": true },
+		"showSparkline": { "type": "boolean", "default": true },
+		"tempUnit": { "type": "string", "enum": [ "", "F", "C" ], "default": "" }
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"spacing": { "margin": true, "padding": true }
+	},
+	"example": {
+		"attributes": { "siteId": "USGS-06037500" }
+	},
+	"editorScript": "file:./index.js",
+	"editorStyle": [ "river-conditions-gauge", "file:./index.css" ],
+	"render": "file:./render.php"
+}

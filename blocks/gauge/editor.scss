@@ -1,0 +1,48 @@
+/**
+ * Editor-only styles.
+ */
+.rivcon-placeholder__form {
+	display: flex;
+	gap: 8px;
+	width: 100%;
+
+	.components-base-control {
+		flex: 1;
+	}
+}
+
+.rivcon-placeholder__links {
+	margin: 10px 0 0;
+}
+
+.rivcon-validation {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin: 6px 0 16px;
+	font-size: 12px;
+
+	&.is-ok {
+		color: #007017;
+	}
+
+	&.is-error {
+		color: #cc1818;
+	}
+}
+
+// The preview is not interactive: links would navigate away from the editor.
+.rivcon-editor-preview {
+
+	a {
+		pointer-events: none;
+	}
+
+	&[aria-busy="true"] {
+		opacity: 0.7;
+	}
+}
+
+.rivcon-gauge--notice {
+	padding: 12px;
+}
