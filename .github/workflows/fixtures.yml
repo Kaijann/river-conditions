@@ -1,0 +1,31 @@
+name: Fixtures
+
+# Capture real USGS API responses as test fixtures (bin/fetch-fixtures.sh)
+# and push them to a fixtures/ branch for review. Run manually from the
+# Actions tab. An optional USGS_API_KEY repository secret raises rate limits.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture fixtures
+        env:
+          USGS_API_KEY: ${{ secrets.USGS_API_KEY }}
+        run: bin/fetch-fixtures.sh
+      - name: Push to a review branch
+        run: |
+          branch="fixtures/$(date -u +%Y%m%d-%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add tests/fixtures
+          git commit -m "Capture USGS fixtures $(date -u +%Y-%m-%d)" || { echo "No changes."; exit 0; }
+          git push origin "$branch"
+          echo "Pushed $branch. Open a PR from it to review the fixtures." >> "$GITHUB_STEP_SUMMARY"
+          cat tests/fixtures/CAPTURE.md >> "$GITHUB_STEP_SUMMARY"
