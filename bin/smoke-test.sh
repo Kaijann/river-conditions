@@ -26,8 +26,9 @@ create_page() {
 
 check_page() {
 	local label="$1" id="$2" html
-	html="$(curl -fsS "${SITE_URL}/?page_id=${id}")"
+	html="$(curl -fsSL "${SITE_URL}/?page_id=${id}")"
 	echo "== ${label}: page ${id}"
+	# Note: curl -L because wp-env uses pretty permalinks, so ?page_id=N redirects.
 	# grep -o | head can SIGPIPE under pipefail; these lines are informational only.
 	grep -o '<figure[^>]*rivcon-gauge[^>]*>' <<<"$html" | head -1 || true
 	if ! grep -q 'class="[^"]*rivcon-gauge' <<<"$html"; then
@@ -60,23 +61,24 @@ check_page "block" "$BLOCK_ID"
 check_page "shortcode (compact)" "$SHORT_ID"
 
 echo "== invalid site renders only a comment"
-html="$(curl -fsS "${SITE_URL}/?page_id=${INVALID_ID}")"
+html="$(curl -fsSL "${SITE_URL}/?page_id=${INVALID_ID}")"
 grep -q '<!-- River Conditions: no USGS gauge for USGS-123 -->' <<<"$html"
 refute "invalid site rendered gauge markup" grep -q 'rivcon-gauge__' <<<"$html"
 
 echo "== pages without a gauge load no plugin CSS"
-plain="$(curl -fsS "${SITE_URL}/?page_id=${PLAIN_ID}")"
+plain="$(curl -fsSL "${SITE_URL}/?page_id=${PLAIN_ID}")"
 refute "plugin CSS loaded on a page without a gauge" grep -q 'river-conditions-gauge-css' <<<"$plain"
 
 echo "== REST routes are registered and protected"
-curl -fsS "${SITE_URL}/?rest_route=/river-conditions/v1" | grep -q '"namespace":"river-conditions\\/v1"'
-status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${SITE_URL}/?rest_route=/river-conditions/v1/render")
+index="$(curl -fsSL "${SITE_URL}/?rest_route=/river-conditions/v1")"
+grep -q '"namespace":"river-conditions\\/v1"' <<<"$index"
+status=$(curl -sL -o /dev/null -w '%{http_code}' -X POST "${SITE_URL}/?rest_route=/river-conditions/v1/render")
 test "$status" = "401" || { echo "FAIL: /render should need auth, got $status"; exit 1; }
 
 echo "== the API key never reaches the page"
 $WP option update rivcon_settings '{"api_key":"SMOKEKEY123","cache_minutes":15,"temp_unit":"F","show_attribution":true}' --format=json
 $WP transient delete --all
-keyed="$(curl -fsS "${SITE_URL}/?page_id=${BLOCK_ID}")"
+keyed="$(curl -fsSL "${SITE_URL}/?page_id=${BLOCK_ID}")"
 refute "API key appears in page HTML" grep -q 'SMOKEKEY123' <<<"$keyed"
 
 echo "== uninstall removes options"
