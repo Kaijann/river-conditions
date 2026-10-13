@@ -60,7 +60,7 @@ jobs:
           unzip -l river-conditions.zip
           unzip -l river-conditions.zip | grep -q 'river-conditions/build/gauge/block.json'
           ! unzip -l river-conditions.zip | grep -E '/(vendor|node_modules|tests|blocks)/'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: river-conditions-zip
           path: river-conditions.zip
