@@ -23,6 +23,9 @@ class UsgsClient {
 	public const BASE_URL = 'https://api.waterdata.usgs.gov/ogcapi/v1';
 	public const TIMEOUT  = 8;
 
+	/** Length of the flow series, in seconds. */
+	public const SERIES_SPAN = 7 * 86400;
+
 	/** Safety cap when following "next" links. */
 	public const MAX_PAGES = 4;
 
@@ -87,17 +90,19 @@ class UsgsClient {
 	/**
 	 * Fetch the 7-day discharge series, following pagination.
 	 *
-	 * @param string $site_id USGS-prefixed site ID.
+	 * @param string   $site_id USGS-prefixed site ID.
+	 * @param int|null $now     Current time (for tests).
 	 * @return list<array{0:int,1:float}>
 	 * @throws UsgsException On network or API errors.
 	 */
-	public function flow_series( string $site_id ): array {
+	public function flow_series( string $site_id, ?int $now = null ): array {
 		$url      = self::url(
 			'continuous',
 			array(
 				'monitoring_location_id' => $site_id,
 				'parameter_code'         => GaugeReading::PARAM_FLOW,
-				'datetime'               => 'P7D',
+				// The API rejects ISO durations like "P7D"; it needs an explicit interval.
+				'datetime'               => self::interval( $now ?? time(), self::SERIES_SPAN ),
 				'skipGeometry'           => 'true',
 				'limit'                  => '1000',
 			),
@@ -138,6 +143,16 @@ class UsgsClient {
 			$params['api_key'] = $api_key;
 		}
 		return self::BASE_URL . '/collections/' . rawurlencode( $collection ) . '/items?' . http_build_query( $params, '', '&', PHP_QUERY_RFC3986 );
+	}
+
+	/**
+	 * An OGC datetime interval ending now: "2026-10-06T21:00:00Z/2026-10-13T21:00:00Z".
+	 *
+	 * @param int $now     End of the interval (Unix time).
+	 * @param int $seconds Length of the interval.
+	 */
+	public static function interval( int $now, int $seconds ): string {
+		return gmdate( 'Y-m-d\TH:i:s\Z', $now - $seconds ) . '/' . gmdate( 'Y-m-d\TH:i:s\Z', $now );
 	}
 
 	/**

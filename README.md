@@ -80,6 +80,8 @@ bin/set-api-key.sh            # optional: stores $USGS_API_KEY in the local site
 | `bin/fetch-fixtures.sh` | captures real USGS responses into `tests/fixtures/` |
 | `composer make-pot` | regenerates `languages/river-conditions.pot` (also run by the release workflow) |
 
+Step-by-step local testing, including how to simulate a USGS outage, is in [docs/TESTING.md](docs/TESTING.md).
+
 CI (`.github/workflows/ci.yml`) runs PHPCS, PHPStan and PHPUnit on PHP 8.1 and 8.3, plus JS/CSS lint, the build, a CSS size budget, a zip-contents check, and a wp-env smoke test that activates the plugin and renders the block and shortcode on a real WordPress.
 
 ## Release and deploy
@@ -98,7 +100,7 @@ Built AI-first with agents (Cursor, K-AI, Claude Code) and reviewed line by line
 
 ## Roadmap
 
-- Editor site search by name (pending verification of the CQL2 filter; see USGS-NOTES)
+- Editor site search by name (the API's CQL2 `ILIKE` filter returned "Bad CQL text" in testing; see USGS-NOTES)
 - "% of normal for today" (USGS statistics service)
 - Map view
 - Saved rivers for logged-in users

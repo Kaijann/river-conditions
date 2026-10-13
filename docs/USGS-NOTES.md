@@ -1,10 +1,9 @@
 # USGS Water Data API: notes
 
 Findings about the USGS Water Data OGC API that shaped the parser and client.
-**Status: partly verified.** The first section comes from the published docs.
-The capture section is filled in from `bin/fetch-fixtures.sh` output (see
-`tests/fixtures/CAPTURE.md`) and must be confirmed against real responses
-before v1.0.0.
+**Status: verified against the live v1 API on 2026-10-13** (first fixture
+capture, see `tests/fixtures/CAPTURE.md`). Where the docs and the live API
+disagreed, the code follows the live API.
 
 ## From the documentation
 
@@ -30,7 +29,10 @@ before v1.0.0.
   temperature sensors, or a daily statistic next to the instantaneous value.
   The parser prefers `statistic_id = 00011` (instantaneous), then the newest
   reading.
-- **Durations.** `datetime=P7D` is accepted as "the last 7 days".
+- **Durations are rejected.** `datetime=P7D` returns HTTP 400
+  `"Unknown string format: P7D"`, although some client docs show it. The
+  client sends an explicit interval instead:
+  `datetime=2026-10-06T21:00:00Z/2026-10-13T21:00:00Z` (`UsgsClient::interval()`).
 - **Paging.** Results are paged with `limit` plus a `links[rel=next]` URL.
   At 15-minute data, 7 days is about 672 points, under `limit=1000`. 5-minute
   gauges need a second page, and the client follows up to 4 pages. The next
@@ -54,9 +56,29 @@ tests (`tests/Unit/FixtureParserTest.php`) exist to catch them.
 4. Editor search by name (CQL2 `ILIKE`) is **not shipped**. If the
    `location-search` fixture returns matches, build it per SPEC §4.
 
-## Capture results
+## Capture results (2026-10-13, v1, no API key)
 
-_Run the **Fixtures** workflow (Actions tab) or `bin/fetch-fixtures.sh`,
-then paste the relevant parts of `tests/fixtures/CAPTURE.md` here: HTTP
-statuses, which demo gauges report temperature, the property list, and
-whether the CQL2 search works._
+| Check | Result |
+|---|---|
+| `/ogcapi/v1/` | Live, HTTP 200 |
+| `monitoring-locations?id=USGS-06037500` | Madison River near West Yellowstone, MT · Montana |
+| `monitoring-locations?id=USGS-06043500` | Gallatin River near Gallatin Gateway, MT · Montana |
+| `latest-continuous`, Madison | 00010 (temp), 00060, 00065, 00095 |
+| `latest-continuous`, Gallatin | 00060, 00065 (**no temperature**: the "hidden stat" case) |
+| Temperature + flow gauge | `USGS-01036390` |
+| `continuous` with `datetime=P7D` | **HTTP 400**, see above |
+| CQL2 `ILIKE` name search | **HTTP 400 "Bad CQL text"**, so editor search is not shipped |
+
+Other findings:
+
+- **Names are mixed case** in v1 and end in the state code
+  (`"Madison River near West Yellowstone, MT"`). `Format::site_name()` drops
+  the code when the state is shown. A few legacy names are still upper case
+  (`"SAN MARCIAL ADDED"`) and get title case.
+- **`USGS-00000000` is a real site** (San Marcial Added, NM), so the
+  invalid-site fixture uses a 15-digit ID.
+- `latest-continuous` properties match the docs exactly: `approval_status`,
+  `last_modified`, `monitoring_location_id`, `parameter_code`, `qualifier`,
+  `statistic_id`, `time`, `time_series_id`, `unit_of_measure`, `value`
+  (string). The site name is not among them.
+- `numberMatched` is not returned; `numberReturned` is.

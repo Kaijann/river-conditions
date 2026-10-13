@@ -59,18 +59,24 @@ final class Format {
 	/**
 	 * Tidy a USGS site name for display.
 	 *
-	 * Many USGS names are upper case with the state code at the end
-	 * ("MADISON RIVER NEAR WEST YELLOWSTONE MT"). Those become title case, with
-	 * small words lower case and the state code dropped when the state is
-	 * shown separately. Names that already use mixed case are left alone.
+	 * The v1 API returns mixed-case names ending in a state code ("Madison
+	 * River near West Yellowstone, MT"); the code is dropped when the state is
+	 * shown separately. Some older names are all upper case ("SAN MARCIAL
+	 * ADDED"); those become title case with small words lower case.
 	 *
 	 * @param string $name       Name from USGS.
 	 * @param bool   $drop_state Remove a trailing two-letter state code.
 	 */
 	public static function site_name( string $name, bool $drop_state = true ): string {
 		$name = trim( (string) preg_replace( '/\s+/', ' ', $name ) );
-		if ( '' === $name || strtoupper( $name ) !== $name || strtolower( $name ) === $name ) {
+		if ( '' === $name ) {
 			return $name;
+		}
+
+		// Mixed-case names (what the v1 API returns, e.g. "Madison River near
+		// West Yellowstone, MT") only lose the trailing state code.
+		if ( strtoupper( $name ) !== $name || strtolower( $name ) === $name ) {
+			return $drop_state ? (string) preg_replace( '/,\s+[A-Z]{2}\.?$/', '', $name ) : $name;
 		}
 
 		$state_code = '';

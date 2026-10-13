@@ -70,7 +70,9 @@ final class FormatTest extends \PHPUnit\Framework\TestCase {
 			'abbreviation'       => array( 'YELLOWSTONE R NR CORWIN SPRINGS MT', 'Yellowstone R nr Corwin Springs' ),
 			'route code'         => array( 'STILLWATER R AT ST RT 185 OH', 'Stillwater R at St Rt 185' ),
 			'hyphen'             => array( 'WILKES-BARRE CREEK AT THE MOUTH PA', 'Wilkes-Barre Creek at the Mouth' ),
-			'already mixed case' => array( 'Madison River near West Yellowstone, MT', 'Madison River near West Yellowstone, MT' ),
+			'v1 mixed case'      => array( 'Madison River near West Yellowstone, MT', 'Madison River near West Yellowstone' ),
+			'mixed, no state'    => array( 'Clear Creek above Lake', 'Clear Creek above Lake' ),
+			'real all-caps name' => array( 'SAN MARCIAL ADDED', 'San Marcial Added' ),
 		);
 	}
 

@@ -18,8 +18,28 @@ final class ClientTest extends TestCase {
 	}
 
 	public function test_url_appends_key_when_set(): void {
-		$url = UsgsClient::url( 'continuous', array( 'datetime' => 'P7D' ), 'abc123' );
-		$this->assertStringEndsWith( '&datetime=P7D&api_key=abc123', $url );
+		$url = UsgsClient::url( 'continuous', array( 'limit' => '10' ), 'abc123' );
+		$this->assertStringEndsWith( '&limit=10&api_key=abc123', $url );
+	}
+
+	public function test_series_uses_an_explicit_seven_day_interval(): void {
+		// The live API answers HTTP 400 "Unknown string format: P7D" to durations.
+		$this->assertSame( '2026-10-06T21:00:00Z/2026-10-13T21:00:00Z', UsgsClient::interval( 1791925200, 7 * 86400 ) );
+
+		$urls   = array();
+		$client = new UsgsClient(
+			'',
+			function ( string $url ) use ( &$urls ) {
+				$urls[] = $url;
+				return array(
+					'response' => array( 'code' => 200 ),
+					'body'     => '{"features":[]}',
+				);
+			}
+		);
+		$client->flow_series( 'USGS-06037500', 1791925200 );
+		$this->assertStringContainsString( 'datetime=2026-10-06T21%3A00%3A00Z%2F2026-10-13T21%3A00%3A00Z', $urls[0] );
+		$this->assertStringNotContainsString( 'P7D', $urls[0] );
 	}
 
 	public function test_sends_user_agent_and_timeout(): void {
